@@ -1,0 +1,8 @@
+[submodule "FreeType/FreeType"]
+	path = freetype
+	url = https://gitlab.freedesktop.org/freetype/freetype.git
+	branch = master
+[submodule "adafruit/Adafruit-GFX-Library"]
+	path = Adafruit-GFX-Library
+	url = https://github.com/adafruit/Adafruit-GFX-Library.git
+	branch = master
