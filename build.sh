@@ -16,4 +16,4 @@ emmake make install
 popd
 
 touch web/favicon.ico
-emcc -O3 -Ibuild/freetype/include/freetype2 -Lbuild/freetype/lib -lfreetype fontconvert.c -o web/index.html --shell-file fontconvert.html
+emcc -O3 -Ibuild/freetype/include/freetype2 -Lbuild/freetype/lib -lfreetype fontconvert.c -o web/index.html -sEXPORTED_FUNCTIONS=_fontconvert,_malloc,_free -sEXPORTED_RUNTIME_METHODS=stringToNewUTF8,UTF8ToString --shell-file fontconvert.html

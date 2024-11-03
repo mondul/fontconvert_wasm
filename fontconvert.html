@@ -5,12 +5,108 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>fontconvert wasm implementation</title>
     <style>
-        body { font-family: Arial, Helvetica, sans-serif; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        #form > div {
+            margin-bottom: 1em;
+        }
+        #form > div input[type=number] {
+            width: 4em;
+        }
+        .note {
+            opacity: 0.5;
+            font-size: 0.75em;
+        }
     </style>
 </head>
 <body>
-    <h1>fontconvert wasm implementation</h1>
-    <p>Check the developers tools console output to verify if it worked.</p>
+    <form id="form" autocomplete="off">
+        <h1>fontconvert wasm implementation</h1>
+        <div>
+            <label for="font">Font file:</label>
+            <input type="file" name="font" id="font" accept=".ttf,.otf,.woff,.fon">
+        </div>
+        <div>
+            <label for="size">Font size:</label>
+            <input type="number" name="size" id="size" value="8" min="1" max="255">
+        </div>
+        <div>
+            <div>
+                <label for="size">First character code:</label>
+                <input type="number" name="first" id="first" value="32" min="32" max="255">
+            </div>
+            <div class="note">Default value: 32 (0x20, SPACE)</div>
+        </div>
+        <div>
+            <div>
+                <label for="size">Last character code:</label>
+                <input type="number" name="last" id="last" value="126" min="32" max="255">
+            </div>
+            <div class="note">Default value: 126 (0x7E, ~)</div>
+        </div>
+        <button type="submit" id="submit" disabled>Generate code</button>
+    </form>
+    <pre id="code"></pre>
+    <script>
+        var Module = {
+            onRuntimeInitialized: function() {
+                // First, set up form behavior
+                var form_element = document.getElementById('form');
+                var font_element = document.getElementById('font');
+                var size_element = document.getElementById('size');
+                var first_element = document.getElementById('first');
+                var last_element = document.getElementById('last');
+                var submit_element = document.getElementById('submit');
+                var code_element = document.getElementById('code');
+
+                font_element.addEventListener('change', function() {
+                    submit_element.disabled = !font_element.files.length;
+                });
+                font_element.addEventListener('cancel', function() {
+                    font_element.value = null;
+                    submit_element.disabled = true;
+                });
+
+                // Run fontconvert on submit
+                form_element.onsubmit = function(event) {
+                    event.preventDefault();
+                    // Prepare the font file contents. We need to read it,
+                    // allocate space for it in the wasm's memory and copy
+                    // its contents there
+                    var reader = new FileReader();
+                    reader.onload = function() {
+                        var array_buffer = reader.result;
+                        // Prepare arguments:
+                        // >> char *fontName
+                        // >> uint8_t *fontFileContents
+                        // >> uint16_t fontFileSize
+                        // >> uint8_t size
+                        // >> uint8_t first
+                        // >> uint8_t last
+                        var fontFileContents_ptr = Module._malloc(array_buffer.byteLength);
+                        // Fill the fontFileContents pointer. It will be freed in wasm
+                        Module.HEAPU8.set(new Uint8Array(array_buffer), fontFileContents_ptr);
+                        // Make call. Output pointer needs to be freed manually after processing
+                        var output_ptr = Module._fontconvert(
+                            Module.stringToNewUTF8(font_element.files[0].name), // This will be freed in wasm
+                            fontFileContents_ptr,
+                            array_buffer.byteLength,
+                            parseInt(size_element.value),
+                            parseInt(first_element.value),
+                            parseInt(last_element.value)
+                        );
+                        // TODO: Avoid this by changing the static nature of the enbit function vars
+                        form_element.style.display = 'none';
+                        code_element.innerText = Module.UTF8ToString(output_ptr);
+                        Module._free(output_ptr);
+                    };
+                    // Trigger process by reading the font file
+                    reader.readAsArrayBuffer(font_element.files[0]);
+                };
+            }
+        };
+    </script>
     {{{ SCRIPT }}}
 </body>
 </html>
