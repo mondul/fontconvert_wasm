@@ -149,7 +149,15 @@ extern char* fontconvert(
   // the right symbols, and that's not done yet.
   // fprintf(stderr, "%ld glyphs\n", face->num_glyphs);
 
-  sprintf(output, "const uint8_t %sBitmaps[] PROGMEM = {\n  ", fontName);
+  sprintf(
+    output,
+    "/**\n * %s %s, %dpt font for the Arduino GFX library\n */\n\n"
+    "const uint8_t %sBitmaps[] PROGMEM = {\n  ",
+    face->family_name,
+    face->style_name,
+    size,
+    fontName
+  );
 
   // Allocate space for glyph table
   table = (GFXglyph *)malloc((last - first + 1) * sizeof(GFXglyph));
