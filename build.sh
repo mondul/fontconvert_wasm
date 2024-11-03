@@ -5,15 +5,15 @@ else
     exit 1
 fi
 
-rm -rf build web
-mkdir build
+if [ ! -d lib ]; then
+    mkdir lib
+    cd lib
+    emcmake cmake ../freetype
+    emmake make
+    cd ..
+fi
+
+rm -rf web
 mkdir web
-
-pushd build
-CMAKE_INSTALL_PREFIX=freetype emcmake cmake ../freetype
-emmake make
-emmake make install
-popd
-
 touch web/favicon.ico
-emcc -O3 -Ibuild/freetype/include/freetype2 -Lbuild/freetype/lib -lfreetype fontconvert.c -o web/index.html -sEXPORTED_FUNCTIONS=_fontconvert,_malloc,_free -sEXPORTED_RUNTIME_METHODS=stringToNewUTF8,UTF8ToString --shell-file fontconvert.html
+emcc -O3 -Ifreetype/include -Llib -lfreetype fontconvert.c -o web/index.html -sEXPORTED_FUNCTIONS=_fontconvert,_malloc,_free -sEXPORTED_RUNTIME_METHODS=stringToNewUTF8,UTF8ToString --shell-file fontconvert.html
