@@ -96,8 +96,6 @@
                             parseInt(first_element.value),
                             parseInt(last_element.value)
                         );
-                        // TODO: Avoid this by changing the static nature of the enbit function vars
-                        form_element.style.display = 'none';
                         code_element.innerText = Module.UTF8ToString(output_ptr);
                         Module._free(output_ptr);
                     };

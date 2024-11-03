@@ -5,8 +5,8 @@ Adafruit_ftGFX fork & makefont tool, and Paul Kourany's Adafruit_mfGFX.
 NOT AN ARDUINO SKETCH.  This is a command-line tool for preprocessing
 fonts to be used with the Adafruit_GFX Arduino library.
 
-For UNIX-like systems.  Outputs to stdout; redirect to header file, e.g.:
-  ./fontconvert ~/Library/Fonts/FreeSans.ttf 18 > FreeSans18pt7b.h
+For web browsers. Outputs to an allocated buffer that MUST be freed on
+the client's side.
 
 REQUIRES FREETYPE LIBRARY.  www.freetype.org
 
@@ -34,9 +34,12 @@ char *output;
 // Work buffer
 char *buf;
 
+// Variables for enbit
+uint8_t row, firstCall;
+
 // Accumulate bits for output, with periodic hexadecimal byte write
 void enbit(uint8_t value) {
-  static uint8_t row = 0, sum = 0, bit = 0x80, firstCall = 1;
+  static uint8_t sum = 0, bit = 0x80;
   if (value)
     sum |= bit;          // Set bit if needed
   if (!(bit >>= 1)) {    // Advance to next bit, end of byte reached?
@@ -56,6 +59,16 @@ void enbit(uint8_t value) {
   }
 }
 
+/**
+ * Exported function for emscripten
+ * @param fontName         char*    String pointer with font file name, will be freed here
+ * @param fontFileContents uint8_t* Array pointer with font file contents, will be freed here
+ * @param fontFileSize     uint16_t Size of the font file
+ * @param size             uint8_t  Size of the font characters
+ * @param first            uint8_t  First character to process, default is 0x20 (SPACE)
+ * @param last             uint8_t  Last character to process, default is 0x7E (~)
+ * @return                 char*    String pointer with header file contents, MUST be freed on the JS side
+ */
 extern char* fontconvert(
   char *fontName,
   uint8_t *fontFileContents,
@@ -142,6 +155,10 @@ extern char* fontconvert(
   table = (GFXglyph *)malloc((last - first + 1) * sizeof(GFXglyph));
   // Allocate the work buffer according to the font's name length
   buf = malloc(fontNameLen + 48);
+
+  // Initialize variables for enbit
+  row = 0;
+  firstCall = 1;
 
   // Process glyphs and output huge bitmap data array
   for (i = first, j = 0; i <= last; i++, j++) {
