@@ -8,7 +8,7 @@
         body {
             font-family: Arial, Helvetica, sans-serif;
         }
-        #form > div {
+        #form, #form > div {
             margin-bottom: 1em;
         }
         #form > div input[type=number] {
@@ -17,6 +17,53 @@
         .note {
             opacity: 0.5;
             font-size: 0.75em;
+        }
+
+        /* The snackbar - position it at the bottom and in the middle of the screen */
+        /* Taken from: https://www.w3schools.com/howto/howto_js_snackbar.asp */
+        #snackbar {
+            visibility: hidden; /* Hidden by default. Visible on click */
+            min-width: 250px; /* Set a default minimum width */
+            margin-left: -125px; /* Divide value of min-width by 2 */
+            background-color: #333; /* Black background color */
+            color: #fff; /* White text color */
+            text-align: center; /* Centered text */
+            border-radius: 2px; /* Rounded borders */
+            padding: 16px; /* Padding */
+            position: fixed; /* Sit on top of the screen */
+            z-index: 1; /* Add a z-index if needed */
+            left: 50%; /* Center the snackbar */
+            bottom: 30px; /* 30px from the bottom */
+        }
+
+        /* Show the snackbar when clicking on a button (class added with JavaScript) */
+        #snackbar.show {
+            visibility: visible; /* Show the snackbar */
+            /* Add animation: Take 0.5 seconds to fade in and out the snackbar.
+            However, delay the fade out process for 2.5 seconds */
+            -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        /* Animations to fade the snackbar in and out */
+        @-webkit-keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @-webkit-keyframes fadeout {
+            from {bottom: 30px; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+
+        @keyframes fadeout {
+            from {bottom: 30px; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
         }
     </style>
 </head>
@@ -46,8 +93,15 @@
             <div class="note">Default value: 126 (0x7E, ~)</div>
         </div>
         <button type="submit" id="submit" disabled>Generate code</button>
+        <span id="after-generated" style="display: none;">
+            &emsp;
+            <button type="button" id="copy">Copy code to clipboard</button>
+            &emsp;
+            <button type="button" id="clear">Clear output</button>
+        </span>
     </form>
     <pre id="code"></pre>
+    <div id="snackbar">Generated code copied to clipboard</div>
     <script>
         var Module = {
             onRuntimeInitialized: function() {
@@ -58,7 +112,11 @@
                 var first_element = document.getElementById('first');
                 var last_element = document.getElementById('last');
                 var submit_element = document.getElementById('submit');
+                var after_generated_element = document.getElementById('after-generated');
+                var copy_element = document.getElementById('copy');
+                var clear_element = document.getElementById('clear');
                 var code_element = document.getElementById('code');
+                var snackbar_element = document.getElementById('snackbar');
 
                 font_element.addEventListener('change', function() {
                     submit_element.disabled = !font_element.files.length;
@@ -98,9 +156,30 @@
                         );
                         code_element.innerText = Module.UTF8ToString(output_ptr);
                         Module._free(output_ptr);
+                        after_generated_element.style.removeProperty('display');
                     };
                     // Trigger process by reading the font file
                     reader.readAsArrayBuffer(font_element.files[0]);
+                };
+
+                // Copy output to clipboard handler
+                copy_element.onclick = function() {
+                    navigator.clipboard.writeText(code_element.innerText).then(function() {
+                        // Add the "show" class to DIV
+                        snackbar_element.className = 'show';
+                        // After 3 seconds, remove the show class from DIV
+                        setTimeout(function() {
+                            snackbar_element.className = '';
+                        }, 3000);
+                    });
+                };
+
+                // Reset output handler
+                clear_element.onclick = function() {
+                    form_element.reset();
+                    submit_element.disabled = true;
+                    after_generated_element.style.display = 'none';
+                    code_element.innerHTML = '';
                 };
             }
         };
