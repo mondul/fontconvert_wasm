@@ -16,4 +16,4 @@ fi
 rm -rf web
 mkdir web
 touch web/favicon.ico
-emcc -O3 -Ifreetype/include -Llib -lfreetype fontconvert.c -o web/index.html -sEXPORTED_FUNCTIONS=_fontconvert,_malloc,_free -sEXPORTED_RUNTIME_METHODS=stringToNewUTF8,UTF8ToString --shell-file fontconvert.html
+emcc -O3 -Ifreetype/include -Llib -lfreetype fontconvert.c -o web/index.html -sEXPORTED_FUNCTIONS=_fontconvert,_malloc -sEXPORTED_RUNTIME_METHODS=stringToNewUTF8 --shell-file fontconvert.html
