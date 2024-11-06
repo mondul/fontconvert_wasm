@@ -130,6 +130,10 @@
                     </div>
                     <div class="note">Default value: 126 (0x7E, ~)</div>
                 </div>
+                <div id="offsetcontainer" style="display: none;">
+                    <input type="checkbox" id="offsetcheck" name="offsetcheck">
+                    <label for="offsetcheck">Apply <code>0x1F</code> charmap offset to bitmap font</label>
+                </div>
                 <button type="submit" id="submit" disabled>Generate code</button>
                 <span id="after-generated" style="display: none;">
                     &emsp;
@@ -166,6 +170,8 @@
                 var size_element = document.getElementById('size');
                 var first_element = document.getElementById('first');
                 var last_element = document.getElementById('last');
+                var offset_container_element = document.getElementById('offsetcontainer');
+                var offset_check_element = document.getElementById('offsetcheck');
                 var submit_element = document.getElementById('submit');
                 var after_generated_element = document.getElementById('after-generated');
                 var copy_element = document.getElementById('copy');
@@ -174,10 +180,19 @@
                 var display_element = document.getElementById('display');
 
                 font_element.addEventListener('change', function() {
+                    if (/\.fon/i.test(font_element.files[0].name)) {
+                        offset_container_element.style.removeProperty('display');
+                        offset_check_element.checked = true;
+                    } else {
+                        offset_container_element.style.display = 'none';
+                        offset_check_element.checked = false;
+                    }
                     submit_element.disabled = !font_element.files.length;
                 });
                 font_element.addEventListener('cancel', function() {
                     font_element.value = null;
+                    offset_container_element.style.display = 'none';
+                    offset_check_element.checked = false;
                     submit_element.disabled = true;
                 });
 
@@ -200,6 +215,7 @@
                         // >> uint8_t size
                         // >> uint8_t first
                         // >> uint8_t last
+                        // >> uint8_t charmapOffset
                         var fontFileContents_ptr = Module._malloc(array_buffer.byteLength);
                         // Fill the fontFileContents pointer. It will be freed in wasm
                         Module.HEAPU8.set(new Uint8Array(array_buffer), fontFileContents_ptr);
@@ -210,7 +226,8 @@
                             array_buffer.byteLength,
                             parseInt(size_element.value),
                             parseInt(first_element.value),
-                            parseInt(last_element.value)
+                            parseInt(last_element.value),
+                            offset_check_element.checked ? 0x1F : 0
                         )) {
                             after_generated_element.style.removeProperty('display');
                             // Get array of bitmaps (last two values will be ignored)
@@ -327,6 +344,8 @@
                 // Reset output handler
                 clear_element.onclick = function() {
                     form_element.reset();
+                    offset_container_element.style.display = 'none';
+                    offset_check_element.checked = false;
                     submit_element.disabled = true;
                     after_generated_element.style.display = 'none';
                     code_element.innerHTML = '';

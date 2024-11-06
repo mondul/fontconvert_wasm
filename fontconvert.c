@@ -62,6 +62,7 @@ void enbit(uint8_t value) {
  * @param size             uint8_t  Size of the font characters
  * @param first            uint8_t  First character to process, default is 0x20 (SPACE)
  * @param last             uint8_t  Last character to process, default is 0x7E (~)
+ * @param charmapOffset    uint8_t  Offset for going back x characters in the charmap (for FON files)
  */
 extern int fontconvert(
   char *fontName,
@@ -69,9 +70,11 @@ extern int fontconvert(
   uint16_t fontFileSize,
   uint8_t size,
   uint8_t first,
-  uint8_t last
+  uint8_t last,
+  uint8_t charmapOffset
 ) {
 #else
+#define charmapOffset 0
 int main(int argc, char *argv[]) {
 #endif
   int i, j, fontNameLen, err, bitmapOffset = 0, x, y, byte;
@@ -228,7 +231,7 @@ int main(int argc, char *argv[]) {
   for (i = first, j = 0; i <= last; i++, j++) {
     // MONO renderer provides clean image with perfect crop
     // (no wasted pixels) via bitmap struct.
-    if ((err = FT_Load_Char(face, i, FT_LOAD_TARGET_MONO))) {
+    if ((err = FT_Load_Char(face, i - charmapOffset, FT_LOAD_TARGET_MONO))) {
       fprintf(stderr, "Error %d loading char '%c'\n", err, i);
       continue;
     }
