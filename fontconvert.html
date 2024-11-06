@@ -72,16 +72,16 @@
             background: black;
         }
         #display > .char > .chartable td.overflow {
-            border-right-color: #A00;
+            border-right-color: #F77;
         }
         #display > .char > .chartable td.overflow + td {
-            border-left-color: #A00;
+            border-left-color: #F77;
         }
         #display > .char > .chartable > tr.base > td {
-            border-bottom-color: #A00;
+            border-bottom-color: #F77;
         }
         #display > .char > .chartable > tr.base + tr > td {
-            border-top-color: #A00;
+            border-top-color: #F77;
         }
         @media only screen and (min-width: 600px) {
             #row {
@@ -263,12 +263,20 @@
                                 // Variables for current character
                                 var char_base = chars_base + glyphs[i + 5];
                                 var char_x_offset = glyphs[i + 4];
-                                var char_cols = glyphs[i + 3];
+                                var char_x_advance = glyphs[i + 3];
                                 var last_row = char_base + glyphs[i + 2];
-                                var last_col = char_x_offset + glyphs[i + 1];
+                                var last_col = glyphs[i + 1];
                                 var bitmap_index = glyphs[i];
-                                var max_cols = Math.max(char_cols, last_col);
-                                var overflow_col = max_cols > char_cols ? char_cols - 1 : 0;
+                                // Calculate proper character width
+                                if (char_x_offset > 0) last_col += char_x_offset;
+                                var max_cols = Math.max(char_x_advance, last_col);
+                                // Overflow indicators positions (red vertical bars)
+                                var overflow_l_col = -1;
+                                var overflow_r_col = max_cols > char_x_advance ? char_x_advance - 1 : 0;
+                                if (char_x_offset < 0) {
+                                    overflow_l_col -= char_x_offset;
+                                    if (overflow_r_col) overflow_r_col -= char_x_offset;
+                                }
                                 var bits = [];
                                 // Character row
                                 for (var j = 0; j < char_rows; j++) {
@@ -286,7 +294,7 @@
                                             char_td_element.className = '_' + bits.shift();
                                         }
                                         // Change vertical border color when overflowing
-                                        if (overflow_col && k == overflow_col) char_td_element.classList.add('overflow');
+                                        if ((overflow_l_col >= 0 && k == overflow_l_col) || (overflow_r_col && k == overflow_r_col)) char_td_element.classList.add('overflow');
                                         char_tr_element.appendChild(char_td_element);
                                     }
                                     char_table_element.appendChild(char_tr_element);
