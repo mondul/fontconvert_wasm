@@ -25,14 +25,72 @@
             width: 4em;
         }
         .note {
-            opacity: 0.5;
+            color: #AAA;
             font-size: 0.75em;
         }
+        .bold {
+            font-weight: bold;
+        }
         #code {
-            font-family: monospace;
-            font-size: 1em;
-            background: #F7F7F7;
-            resize: none;
+            overflow-x: auto;
+        }
+        #display > .char {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            vertical-align: top;
+            border: 1px solid #AAA;
+            border-radius: 0.5em;
+            margin: 0 1em 1em 0;
+        }
+        #display > .char > div {
+            text-align: center;
+        }
+        #display > .char > .charname {
+            margin: 0.5rem;
+            height: 1rem;
+        }
+        #display > .char > .charcode {
+            width: 100%;
+            background: #EEE;
+            line-height: 1.5rem;
+        }
+        #display > .char > .chartable {
+            border-collapse: collapse;
+            margin: 0.5em;
+        }
+        #display > .char > .chartable td {
+            border: 1px solid #CCC;
+            background: #EEE;
+            width: 0.25em;
+            height: 0.25em;
+        }
+        #display > .char > .chartable td._0 {
+            background: white;
+        }
+        #display > .char > .chartable td._1 {
+            background: black;
+        }
+        #display > .char > .chartable td.overflow {
+            border-right-color: #A00;
+        }
+        #display > .char > .chartable td.overflow + td {
+            border-left-color: #A00;
+        }
+        #display > .char > .chartable > tr.base > td {
+            border-bottom-color: #A00;
+        }
+        #display > .char > .chartable > tr.base + tr > td {
+            border-top-color: #A00;
+        }
+        @media only screen and (min-width: 600px) {
+            #row {
+                display: flex;
+                justify-content: space-between;
+            }
+            .col {
+                width: 49%;
+            }
         }
     </style>
 </head>
@@ -46,43 +104,51 @@
             </svg>
         </a>
     </header>
-    <form id="form" autocomplete="off">
-        <div>
-            <label for="font">Font file:</label>
-            <input type="file" name="font" id="font" accept=".ttf,.otf,.woff,.fon">
+
+    <div id="row">
+        <div class="col">
+            <form id="form" autocomplete="off">
+                <div>
+                    <label for="font">Font file:</label>
+                    <input type="file" name="font" id="font" accept=".ttf,.otf,.woff,.fon">
+                </div>
+                <div>
+                    <label for="size">Font size:</label>
+                    <input type="number" name="size" id="size" value="8" min="1" max="255">
+                </div>
+                <div>
+                    <div>
+                        <label for="size">First character code:</label>
+                        <input type="number" name="first" id="first" value="32" min="32" max="255">
+                    </div>
+                    <div class="note">Default value: 32 (0x20, space)</div>
+                </div>
+                <div>
+                    <div>
+                        <label for="size">Last character code:</label>
+                        <input type="number" name="last" id="last" value="126" min="32" max="255">
+                    </div>
+                    <div class="note">Default value: 126 (0x7E, ~)</div>
+                </div>
+                <button type="submit" id="submit" disabled>Generate code</button>
+                <span id="after-generated" style="display: none;">
+                    &emsp;
+                    <button type="button" id="copy">Copy code to clipboard</button>
+                    &emsp;
+                    <button type="button" id="clear">Clear output</button>
+                </span>
+            </form>
+            <pre id="code"></pre>
         </div>
-        <div>
-            <label for="size">Font size:</label>
-            <input type="number" name="size" id="size" value="8" min="1" max="255">
-        </div>
-        <div>
-            <div>
-                <label for="size">First character code:</label>
-                <input type="number" name="first" id="first" value="32" min="32" max="255">
-            </div>
-            <div class="note">Default value: 32 (0x20, SPACE)</div>
-        </div>
-        <div>
-            <div>
-                <label for="size">Last character code:</label>
-                <input type="number" name="last" id="last" value="126" min="32" max="255">
-            </div>
-            <div class="note">Default value: 126 (0x7E, ~)</div>
-        </div>
-        <button type="submit" id="submit" disabled>Generate code</button>
-        <span id="after-generated" style="display: none;">
-            &emsp;
-            <button type="button" id="copy">Copy code to clipboard</button>
-            &emsp;
-            <button type="button" id="clear">Clear output</button>
-        </span>
-    </form>
-    <textarea id="code" cols="80" rows="24" readonly autocomplete="off" style="display: none;"></textarea>
+
+        <div id="display" class="col"></div>
+    </div>
+
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js" crossorigin="anonymous"></script>
     <script>
         var Module = {
             print: function(text) {
-                document.getElementById('code').value += (text + '\r\n');
+                document.getElementById('code').innerHTML += (text + '\r\n');
             },
             printErr: function(text) {
                 Toastify({
@@ -105,6 +171,7 @@
                 var copy_element = document.getElementById('copy');
                 var clear_element = document.getElementById('clear');
                 var code_element = document.getElementById('code');
+                var display_element = document.getElementById('display');
 
                 font_element.addEventListener('change', function() {
                     submit_element.disabled = !font_element.files.length;
@@ -117,6 +184,9 @@
                 // Run fontconvert on submit
                 form_element.onsubmit = function(event) {
                     event.preventDefault();
+                    // Reset code output
+                    code_element.innerHTML = '';
+                    display_element.innerHTML = '';
                     // Prepare the font file contents. We need to read it,
                     // allocate space for it in the wasm's memory and copy
                     // its contents there
@@ -143,7 +213,90 @@
                             parseInt(last_element.value)
                         )) {
                             after_generated_element.style.removeProperty('display');
-                            code_element.style.removeProperty('display');
+                            // Get array of bitmaps (last two values will be ignored)
+                            var bitmaps = Array.from(
+                                code_element.innerText.matchAll(/(\s{2}|,\s)0x([(0-9)|(A-F)]{2})/g),
+                                match => parseInt(match[2], 16)
+                            );
+                            // Ignore last
+                            bitmaps.pop();
+                            var current_char = bitmaps.pop();
+                            // Get glyphs parameters (last two values will be ignored)
+                            var glyphs = Array.from(
+                                code_element.innerText.matchAll(/\s(-?\d+)(,|\s)/g),
+                                match => parseInt(match[1])
+                            ).slice(0, -2);
+
+                            // Calculate single characters display table height
+                            var max_base = 0;
+                            var min_under_base = 0;
+                            for (var i = 0; i < glyphs.length; i += 6) {
+                                var neg_base = -glyphs[i + 5];
+                                max_base = Math.max(max_base, neg_base);
+                                min_under_base = Math.min(min_under_base, neg_base + 1 - glyphs[i + 2]);
+                            }
+                            var char_rows = max_base + 1 - min_under_base;
+                            var chars_base = char_rows + min_under_base - 1;
+
+                            // Display character tables
+                            for (var i = 0; i < glyphs.length; i += 6) {
+                                var char_element = document.createElement('DIV');
+                                char_element.className = 'char';
+
+                                var char_name_element = document.createElement('DIV');
+                                if (current_char == 0x20) {
+                                    char_name_element.className = 'charname note';
+                                    char_name_element.innerText = 'space';
+                                } else if ((current_char > 0x7E && current_char < 0xA1) || current_char == 0xAD) {
+                                    char_name_element.className = 'charname note';
+                                    char_name_element.innerHTML = 'noprint';
+                                } else {
+                                    char_name_element.className = 'charname bold';
+                                    char_name_element.innerText = String.fromCharCode(current_char);
+                                }
+                                var char_code_element = document.createElement('DIV');
+                                char_code_element.className = 'charcode note';
+                                char_code_element.innerText = '0x' + current_char.toString(16).toUpperCase();
+
+                                var char_table_element = document.createElement('TABLE');
+                                char_table_element.className = 'chartable';
+                                // Variables for current character
+                                var char_base = chars_base + glyphs[i + 5];
+                                var char_x_offset = glyphs[i + 4];
+                                var char_cols = glyphs[i + 3];
+                                var last_row = char_base + glyphs[i + 2];
+                                var last_col = char_x_offset + glyphs[i + 1];
+                                var bitmap_index = glyphs[i];
+                                var max_cols = Math.max(char_cols, last_col);
+                                var overflow_col = max_cols > char_cols ? char_cols - 1 : 0;
+                                var bits = [];
+                                // Character row
+                                for (var j = 0; j < char_rows; j++) {
+                                    var char_tr_element = document.createElement('TR');
+                                    // Red underline for character base
+                                    if (j == chars_base) char_tr_element.className = 'base';
+                                    // Pixels
+                                    for (var k = 0; k < max_cols; k++) {
+                                        var char_td_element = document.createElement('TD');
+                                        // Draw pixels between current base and last row
+                                        // Check if current pixel is between offset and last col
+                                        if (j >= char_base && j < last_row && k >= char_x_offset && k < last_col) {
+                                            // If current bits array is empty fill it
+                                            if (!bits.length) bits = bitmaps[bitmap_index++].toString(2).padStart(8, '0').split('');
+                                            char_td_element.className = '_' + bits.shift();
+                                        }
+                                        // Change vertical border color when overflowing
+                                        if (overflow_col && k == overflow_col) char_td_element.classList.add('overflow');
+                                        char_tr_element.appendChild(char_td_element);
+                                    }
+                                    char_table_element.appendChild(char_tr_element);
+                                }
+                                current_char++;
+                                char_element.appendChild(char_name_element);
+                                char_element.appendChild(char_code_element);
+                                char_element.appendChild(char_table_element);
+                                display_element.appendChild(char_element);
+                            }
                         }
                     };
                     // Trigger process by reading the font file
@@ -152,7 +305,7 @@
 
                 // Copy output to clipboard handler
                 copy_element.onclick = function() {
-                    navigator.clipboard.writeText(code_element.value).then(function() {
+                    navigator.clipboard.writeText(code_element.innerText).then(function() {
                         Toastify({
                             text: 'Generated code copied to clipboard',
                             gravity: 'bottom',
@@ -168,8 +321,7 @@
                     form_element.reset();
                     submit_element.disabled = true;
                     after_generated_element.style.display = 'none';
-                    code_element.style.display = 'none';
-                    code_element.value = '';
+                    code_element.innerHTML = '';
                 };
             }
         };
