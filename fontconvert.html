@@ -180,7 +180,7 @@
                 var display_element = document.getElementById('display');
 
                 font_element.addEventListener('change', function() {
-                    if (/\.fon/i.test(font_element.files[0].name)) {
+                    if (/\.fon$/i.test(font_element.files[0].name)) {
                         offset_container_element.style.removeProperty('display');
                         offset_check_element.checked = true;
                     } else {
