@@ -56,32 +56,35 @@
             line-height: 1.5rem;
         }
         #display > .char > .chartable {
-            border-collapse: collapse;
             margin: 0.5em;
         }
-        #display > .char > .chartable td {
+        #display > .char > .chartable > .tr {
+            display: flex;
+        }
+        #display > .char > .chartable .td {
             border: 1px solid #CCC;
             background: #EEE;
             width: 0.25em;
             height: 0.25em;
+            margin: 0 -1px -1px 0;
         }
-        #display > .char > .chartable td._0 {
+        #display > .char > .chartable .td._0 {
             background: white;
         }
-        #display > .char > .chartable td._1 {
+        #display > .char > .chartable .td._1 {
             background: black;
         }
-        #display > .char > .chartable td.overflow {
-            border-right-color: #F77;
+        #display > .char > .chartable .td.overflow {
+            border-right-color: red;
         }
-        #display > .char > .chartable td.overflow + td {
-            border-left-color: #F77;
+        #display > .char > .chartable .td.overflow + .td {
+            border-left-color: red;
         }
-        #display > .char > .chartable > tr.base > td {
-            border-bottom-color: #F77;
+        #display > .char > .chartable > .tr.base > .td {
+            border-bottom-color: red;
         }
-        #display > .char > .chartable > tr.base + tr > td {
-            border-top-color: #F77;
+        #display > .char > .chartable > .tr.base + .tr > .td {
+            border-top-color: red;
         }
         @media only screen and (min-width: 600px) {
             #row {
@@ -275,7 +278,7 @@
                                 char_code_element.className = 'charcode note';
                                 char_code_element.innerText = '0x' + current_char.toString(16).toUpperCase();
 
-                                var char_table_element = document.createElement('TABLE');
+                                var char_table_element = document.createElement('DIV');
                                 char_table_element.className = 'chartable';
                                 // Variables for current character
                                 var char_base = chars_base + glyphs[i + 5];
@@ -297,18 +300,20 @@
                                 var bits = [];
                                 // Character row
                                 for (var j = 0; j < char_rows; j++) {
-                                    var char_tr_element = document.createElement('TR');
+                                    var char_tr_element = document.createElement('DIV');
+                                    char_tr_element.className = 'tr';
                                     // Red underline for character base
-                                    if (j == chars_base) char_tr_element.className = 'base';
+                                    if (j == chars_base) char_tr_element.classList.add('base');
                                     // Pixels
                                     for (var k = 0; k < max_cols; k++) {
-                                        var char_td_element = document.createElement('TD');
+                                        var char_td_element = document.createElement('DIV');
+                                        char_td_element.className = 'td';
                                         // Draw pixels between current base and last row
                                         // Check if current pixel is between offset and last col
                                         if (j >= char_base && j < last_row && k >= char_x_offset && k < last_col) {
                                             // If current bits array is empty fill it
                                             if (!bits.length) bits = bitmaps[bitmap_index++].toString(2).padStart(8, '0').split('');
-                                            char_td_element.className = '_' + bits.shift();
+                                            char_td_element.classList.add('_' + bits.shift());
                                         }
                                         // Change vertical border color when overflowing
                                         if ((overflow_l_col >= 0 && k == overflow_l_col) || (overflow_r_col && k == overflow_r_col)) char_td_element.classList.add('overflow');
