@@ -1,364 +1,368 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>fontconvert wasm implementation</title>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" crossorigin="anonymous">
-    <style>
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-        }
-        header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        header > a {
-            text-decoration: none;
-            color: inherit;
-        }
-        #form, #form > div {
-            margin-bottom: 1em;
-        }
-        #form > div input[type=number] {
-            width: 4em;
-        }
-        .note {
-            color: #AAA;
-            font-size: 0.75em;
-        }
-        .bold {
-            font-weight: bold;
-        }
-        #code {
-            overflow-x: auto;
-        }
-        #display > .char {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            vertical-align: top;
-            border: 1px solid #AAA;
-            border-radius: 0.5em;
-            margin: 0 1em 1em 0;
-        }
-        #display > .char > div {
-            text-align: center;
-        }
-        #display > .char > .charname {
-            margin: 0.5rem;
-            height: 1rem;
-        }
-        #display > .char > .charcode {
-            width: 100%;
-            background: #EEE;
-            line-height: 1.5rem;
-        }
-        #display > .char > .chartable {
-            margin: 0.5em;
-        }
-        #display > .char > .chartable > .tr {
-            display: flex;
-        }
-        #display > .char > .chartable .td {
-            border: 1px solid #CCC;
-            background: #EEE;
-            width: 0.25em;
-            height: 0.25em;
-            margin: 0 -1px -1px 0;
-        }
-        #display > .char > .chartable .td._0 {
-            background: white;
-        }
-        #display > .char > .chartable .td._1 {
-            background: black;
-        }
-        #display > .char > .chartable .td.overflow {
-            border-right-color: red;
-        }
-        #display > .char > .chartable .td.overflow + .td {
-            border-left-color: red;
-        }
-        #display > .char > .chartable > .tr.base > .td {
-            border-bottom-color: red;
-        }
-        #display > .char > .chartable > .tr.base + .tr > .td {
-            border-top-color: red;
-        }
-        @media only screen and (min-width: 600px) {
-            #row {
-                display: flex;
-                justify-content: space-between;
-            }
-            .col {
-                width: 49%;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>fontconvert wasm implementation</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" crossorigin="anonymous">
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header > a {
+      text-decoration: none;
+      color: inherit;
+    }
+    #form, #form > div {
+      margin-bottom: 1em;
+    }
+    #form > div input[type=number] {
+      width: 4em;
+    }
+    .note {
+      color: #AAA;
+      font-size: 0.75em;
+    }
+    .bold {
+      font-weight: bold;
+    }
+    #code {
+      overflow-x: auto;
+    }
+    #display > .char {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      vertical-align: top;
+      border: 1px solid #AAA;
+      border-radius: 0.5em;
+      margin: 0 1em 1em 0;
+    }
+    #display > .char > div {
+      text-align: center;
+    }
+    #display > .char > .charname {
+      margin: 0.5rem;
+      height: 1rem;
+    }
+    #display > .char > .charcode {
+      width: 100%;
+      background: #EEE;
+      line-height: 1.5rem;
+    }
+    #display > .char > .chartable {
+      margin: 0.5em;
+    }
+    #display > .char > .chartable > .tr {
+      display: flex;
+    }
+    #display > .char > .chartable .td {
+      border: 1px solid #CCC;
+      background: #EEE;
+      width: 0.25em;
+      height: 0.25em;
+      margin: 0 -1px -1px 0;
+    }
+    #display > .char > .chartable .td._0 {
+      background: white;
+    }
+    #display > .char > .chartable .td._1 {
+      background: black;
+    }
+    #display > .char > .chartable .td.overflow {
+      border-right-color: red;
+    }
+    #display > .char > .chartable .td.overflow + .td {
+      border-left-color: red;
+    }
+    #display > .char > .chartable > .tr.base > .td {
+      border-bottom-color: red;
+    }
+    #display > .char > .chartable > .tr.base + .tr > .td {
+      border-top-color: red;
+    }
+    @media only screen and (min-width: 600px) {
+      #row {
+        display: flex;
+        justify-content: space-between;
+      }
+      .col {
+        width: 49%;
+      }
+    }
+  </style>
 </head>
 <body>
-    <header>
-        <h1>fontconvert wasm implementation</h1>
-        <a href="https://github.com/mondul/fontconvert_wasm" target="_blank" referrerpolicy="no-referrer" title="View source code at GitHub">
-            <!-- GitHub icon taken from https://github.com/logos -->
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="none" fill="currentColor">
-                <path d="M12.5.75C6.146.75 1 5.896 1 12.25c0 5.089 3.292 9.387 7.863 10.91.575.101.79-.244.79-.546 0-.273-.014-1.178-.014-2.142-2.889.532-3.636-.704-3.866-1.35-.13-.331-.69-1.352-1.18-1.625-.402-.216-.977-.748-.014-.762.906-.014 1.553.834 1.769 1.179 1.035 1.74 2.688 1.25 3.349.948.1-.747.402-1.25.733-1.538-2.559-.287-5.232-1.279-5.232-5.678 0-1.25.445-2.285 1.178-3.09-.115-.288-.517-1.467.115-3.048 0 0 .963-.302 3.163 1.179.92-.259 1.897-.388 2.875-.388.977 0 1.955.13 2.875.388 2.2-1.495 3.162-1.179 3.162-1.179.633 1.581.23 2.76.115 3.048.733.805 1.179 1.825 1.179 3.09 0 4.413-2.688 5.39-5.247 5.678.417.36.776 1.05.776 2.128 0 1.538-.014 2.774-.014 3.162 0 .302.216.662.79.547C20.709 21.637 24 17.324 24 12.25 24 5.896 18.854.75 12.5.75Z"></path>
-            </svg>
-        </a>
-    </header>
+  <header>
+    <h1>fontconvert wasm implementation</h1>
+    <a href="https://github.com/mondul/fontconvert_wasm" target="_blank" referrerpolicy="no-referrer" title="View source code at GitHub">
+      <!-- GitHub icon taken from https://github.com/logos -->
+      <svg viewBox="0 0 24 24" width="24" height="24" stroke="none" fill="currentColor">
+        <path d="M12.5.75C6.146.75 1 5.896 1 12.25c0 5.089 3.292 9.387 7.863 10.91.575.101.79-.244.79-.546 0-.273-.014-1.178-.014-2.142-2.889.532-3.636-.704-3.866-1.35-.13-.331-.69-1.352-1.18-1.625-.402-.216-.977-.748-.014-.762.906-.014 1.553.834 1.769 1.179 1.035 1.74 2.688 1.25 3.349.948.1-.747.402-1.25.733-1.538-2.559-.287-5.232-1.279-5.232-5.678 0-1.25.445-2.285 1.178-3.09-.115-.288-.517-1.467.115-3.048 0 0 .963-.302 3.163 1.179.92-.259 1.897-.388 2.875-.388.977 0 1.955.13 2.875.388 2.2-1.495 3.162-1.179 3.162-1.179.633 1.581.23 2.76.115 3.048.733.805 1.179 1.825 1.179 3.09 0 4.413-2.688 5.39-5.247 5.678.417.36.776 1.05.776 2.128 0 1.538-.014 2.774-.014 3.162 0 .302.216.662.79.547C20.709 21.637 24 17.324 24 12.25 24 5.896 18.854.75 12.5.75Z"></path>
+      </svg>
+    </a>
+  </header>
 
-    <div id="row">
-        <div class="col">
-            <form id="form" autocomplete="off">
-                <div>
-                    <label for="font">Font file:</label>
-                    <input type="file" name="font" id="font" accept=".ttf,.otf,.woff,.fon">
-                </div>
-                <div>
-                    <label for="size">Font size:</label>
-                    <input type="number" name="size" id="size" value="8" min="1" max="255">
-                </div>
-                <div>
-                    <div>
-                        <label for="size">First character code:</label>
-                        <input type="number" name="first" id="first" value="32" min="32" max="255">
-                    </div>
-                    <div class="note">Default value: 32 (0x20, space)</div>
-                </div>
-                <div>
-                    <div>
-                        <label for="size">Last character code:</label>
-                        <input type="number" name="last" id="last" value="126" min="32" max="255">
-                    </div>
-                    <div class="note">Default value: 126 (0x7E, ~)</div>
-                </div>
-                <div id="offsetcontainer" style="display: none;">
-                    <input type="checkbox" id="offsetcheck" name="offsetcheck">
-                    <label for="offsetcheck">Apply <code>0x1F</code> charmap offset to bitmap font</label>
-                </div>
-                <button type="submit" id="submit" disabled>Generate code</button>
-                <span id="after-generated" style="display: none;">
-                    &emsp;
-                    <button type="button" id="copy">Copy code to clipboard</button>
-                    &emsp;
-                    <button type="button" id="clear">Clear output</button>
-                </span>
-            </form>
-            <pre id="code"></pre>
+  <div id="row">
+    <div class="col">
+      <form id="form" autocomplete="off">
+        <div>
+          <label for="font">Font file:</label>
+          <input type="file" name="font" id="font" accept=".ttf,.otf,.woff,.fon,.bdf,.dfont">
         </div>
-
-        <div id="display" class="col"></div>
+        <div>
+          <label for="size">Font size:</label>
+          <input type="number" name="size" id="size" value="8" min="1" max="255">
+        </div>
+        <div>
+          <div>
+            <label for="size">First character code:</label>
+            <input type="number" name="first" id="first" value="32" min="32" max="255">
+          </div>
+          <div class="note">Default value: 32 (0x20, space)</div>
+        </div>
+        <div>
+          <div>
+            <label for="size">Last character code:</label>
+            <input type="number" name="last" id="last" value="126" min="32" max="255">
+          </div>
+          <div class="note">Default value: 126 (0x7E, ~)</div>
+        </div>
+        <div id="offsetcontainer" style="display: none;">
+          <input type="checkbox" id="offsetcheck" name="offsetcheck">
+          <label for="offsetcheck">Apply <code id="offsetval"></code> charmap offset to <span id="offsetfnt"></span> font</label>
+        </div>
+        <button type="submit" id="submit" disabled>Generate code</button>
+        <span id="after-generated" style="display: none;">
+          &emsp;
+          <button type="button" id="copy">Copy code to clipboard</button>
+          &emsp;
+          <button type="button" id="clear">Clear output</button>
+        </span>
+      </form>
+      <pre id="code"></pre>
     </div>
 
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js" crossorigin="anonymous"></script>
-    <script>
-        var Module = {
-            print: function(text) {
-                document.getElementById('code').innerHTML += (text + '\r\n');
-            },
-            printErr: function(text) {
-                Toastify({
-                    text: text,
-                    gravity: 'bottom',
-                    position: 'center',
-                    stopOnFocus: false,
-                    style: { background: '#A00' },
-                }).showToast();
-            },
-            onRuntimeInitialized: function() {
-                // First, set up form behavior
-                var form_element = document.getElementById('form');
-                var font_element = document.getElementById('font');
-                var size_element = document.getElementById('size');
-                var first_element = document.getElementById('first');
-                var last_element = document.getElementById('last');
-                var offset_container_element = document.getElementById('offsetcontainer');
-                var offset_check_element = document.getElementById('offsetcheck');
-                var submit_element = document.getElementById('submit');
-                var after_generated_element = document.getElementById('after-generated');
-                var copy_element = document.getElementById('copy');
-                var clear_element = document.getElementById('clear');
-                var code_element = document.getElementById('code');
-                var display_element = document.getElementById('display');
+    <div id="display" class="col"></div>
+  </div>
 
-                font_element.addEventListener('change', function() {
-                    if (font_element.files.length && /\.fon$/i.test(font_element.files[0].name)) {
-                        offset_container_element.style.removeProperty('display');
-                        offset_check_element.checked = true;
-                    } else {
-                        offset_container_element.style.display = 'none';
-                        offset_check_element.checked = false;
-                    }
-                    submit_element.disabled = !font_element.files.length;
-                });
-                font_element.addEventListener('cancel', function() {
-                    font_element.value = null;
-                    offset_container_element.style.display = 'none';
-                    offset_check_element.checked = false;
-                    submit_element.disabled = true;
-                });
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js" crossorigin="anonymous"></script>
+  <script>
+    var Module = {
+      print: text => {
+        document.getElementById('code').innerHTML += (text + '\r\n')
+      },
+      printErr: text => {
+        Toastify({
+          text: text,
+          gravity: 'bottom',
+          position: 'center',
+          stopOnFocus: false,
+          style: { background: '#A00' },
+        }).showToast()
+      },
+      onRuntimeInitialized: () => {
+        // First, set up form behavior
+        const form_element = document.getElementById('form')
+        const font_element = document.getElementById('font')
+        const size_element = document.getElementById('size')
+        const first_element = document.getElementById('first')
+        const last_element = document.getElementById('last')
+        const offset_container_element = document.getElementById('offsetcontainer')
+        const offset_check_element = document.getElementById('offsetcheck')
+        const offset_val_element = document.getElementById('offsetval')
+        const offset_fnt_element = document.getElementById('offsetfnt')
+        const submit_element = document.getElementById('submit')
+        const after_generated_element = document.getElementById('after-generated')
+        const copy_element = document.getElementById('copy')
+        const clear_element = document.getElementById('clear')
+        const code_element = document.getElementById('code')
+        const display_element = document.getElementById('display')
+        let ext
 
-                // Run fontconvert on submit
-                form_element.onsubmit = function(event) {
-                    event.preventDefault();
-                    // Reset code output
-                    code_element.innerHTML = '';
-                    display_element.innerHTML = '';
-                    // Prepare the font file contents. We need to read it,
-                    // allocate space for it in the wasm's memory and copy
-                    // its contents there
-                    var reader = new FileReader();
-                    reader.onload = function() {
-                        var array_buffer = reader.result;
-                        // Prepare arguments:
-                        // >> char *fontName
-                        // >> uint8_t *fontFileContents
-                        // >> uint16_t fontFileSize
-                        // >> uint8_t size
-                        // >> uint8_t first
-                        // >> uint8_t last
-                        // >> uint8_t charmapOffset
-                        var fontFileContents_ptr = Module._malloc(array_buffer.byteLength);
-                        // Fill the fontFileContents pointer. It will be freed in wasm
-                        Module.HEAPU8.set(new Uint8Array(array_buffer), fontFileContents_ptr);
-                        // Make call
-                        if (!Module._fontconvert(
-                            Module.stringToNewUTF8(font_element.files[0].name), // This will be freed in wasm
-                            fontFileContents_ptr,
-                            array_buffer.byteLength,
-                            parseInt(size_element.value),
-                            parseInt(first_element.value),
-                            parseInt(last_element.value),
-                            offset_check_element.checked ? 0x1F : 0
-                        )) {
-                            after_generated_element.style.removeProperty('display');
-                            // Get array of bitmaps (last two values will be ignored)
-                            var bitmaps = Array.from(
-                                code_element.innerText.matchAll(/(\s{2}|,\s)0x([(0-9)|(A-F)]{2})/g),
-                                match => parseInt(match[2], 16)
-                            );
-                            // Ignore last
-                            bitmaps.pop();
-                            var current_char = bitmaps.pop();
-                            // Get glyphs parameters (last two values will be ignored)
-                            var glyphs = Array.from(
-                                code_element.innerText.matchAll(/\s(-?\d+)(,|\s)/g),
-                                match => parseInt(match[1])
-                            ).slice(0, -2);
-
-                            // Calculate single characters display table height
-                            var max_base = 0;
-                            var min_under_base = 0;
-                            for (var i = 0; i < glyphs.length; i += 6) {
-                                var neg_base = -glyphs[i + 5];
-                                max_base = Math.max(max_base, neg_base);
-                                min_under_base = Math.min(min_under_base, neg_base + 1 - glyphs[i + 2]);
-                            }
-                            var char_rows = max_base + 1 - min_under_base;
-                            var chars_base = char_rows + min_under_base - 1;
-
-                            // Display character tables
-                            for (var i = 0; i < glyphs.length; i += 6) {
-                                var char_element = document.createElement('DIV');
-                                char_element.className = 'char';
-
-                                var char_name_element = document.createElement('DIV');
-                                if (current_char == 0x20) {
-                                    char_name_element.className = 'charname note';
-                                    char_name_element.innerText = 'space';
-                                } else if ((current_char > 0x7E && current_char < 0xA1) || current_char == 0xAD) {
-                                    char_name_element.className = 'charname note';
-                                    char_name_element.innerHTML = 'noprint';
-                                } else {
-                                    char_name_element.className = 'charname bold';
-                                    char_name_element.innerText = String.fromCharCode(current_char);
-                                }
-                                var char_code_element = document.createElement('DIV');
-                                char_code_element.className = 'charcode note';
-                                char_code_element.innerText = '0x' + current_char.toString(16).toUpperCase();
-
-                                var char_table_element = document.createElement('DIV');
-                                char_table_element.className = 'chartable';
-                                // Variables for current character
-                                var char_base = chars_base + glyphs[i + 5];
-                                var char_x_offset = glyphs[i + 4];
-                                var char_x_advance = glyphs[i + 3];
-                                var last_row = char_base + glyphs[i + 2];
-                                var last_col = glyphs[i + 1];
-                                var bitmap_index = glyphs[i];
-                                // Calculate proper character width
-                                if (char_x_offset > 0) last_col += char_x_offset;
-                                var max_cols = Math.max(char_x_advance, last_col);
-                                // Overflow indicators positions (red vertical bars)
-                                var overflow_l_col = -1;
-                                var overflow_r_col = max_cols > char_x_advance ? char_x_advance - 1 : 0;
-                                if (char_x_offset < 0) {
-                                    overflow_l_col -= char_x_offset;
-                                    if (overflow_r_col) overflow_r_col -= char_x_offset;
-                                }
-                                var bits = [];
-                                // Character row
-                                for (var j = 0; j < char_rows; j++) {
-                                    var char_tr_element = document.createElement('DIV');
-                                    char_tr_element.className = 'tr';
-                                    // Red underline for character base
-                                    if (j == chars_base) char_tr_element.classList.add('base');
-                                    // Pixels
-                                    for (var k = 0; k < max_cols; k++) {
-                                        var char_td_element = document.createElement('DIV');
-                                        char_td_element.className = 'td';
-                                        // Draw pixels between current base and last row
-                                        // Check if current pixel is between offset and last col
-                                        if (j >= char_base && j < last_row && k >= char_x_offset && k < last_col) {
-                                            // If current bits array is empty fill it
-                                            if (!bits.length) bits = bitmaps[bitmap_index++].toString(2).padStart(8, '0').split('');
-                                            char_td_element.classList.add('_' + bits.shift());
-                                        }
-                                        // Change vertical border color when overflowing
-                                        if ((overflow_l_col >= 0 && k == overflow_l_col) || (overflow_r_col && k == overflow_r_col)) char_td_element.classList.add('overflow');
-                                        char_tr_element.appendChild(char_td_element);
-                                    }
-                                    char_table_element.appendChild(char_tr_element);
-                                }
-                                current_char++;
-                                char_element.appendChild(char_name_element);
-                                char_element.appendChild(char_code_element);
-                                char_element.appendChild(char_table_element);
-                                display_element.appendChild(char_element);
-                            }
-                        }
-                    };
-                    // Trigger process by reading the font file
-                    reader.readAsArrayBuffer(font_element.files[0]);
-                };
-
-                // Copy output to clipboard handler
-                copy_element.onclick = function() {
-                    navigator.clipboard.writeText(code_element.innerText).then(function() {
-                        Toastify({
-                            text: 'Generated code copied to clipboard',
-                            gravity: 'bottom',
-                            position: 'center',
-                            stopOnFocus: false,
-                            style: { background: '#444' },
-                        }).showToast();
-                    });
-                };
-
-                // Reset output handler
-                clear_element.onclick = function() {
-                    form_element.reset();
-                    offset_container_element.style.display = 'none';
-                    offset_check_element.checked = false;
-                    submit_element.disabled = true;
-                    after_generated_element.style.display = 'none';
-                    code_element.innerHTML = '';
-                    display_element.innerHTML = '';
-                };
+        font_element.onchange = () => {
+          if (font_element.files.length && (ext = /\.(fon|bdf)$/i.exec(font_element.files[0].name))) {
+            ext = ext[1].toLowerCase()
+            if (ext == 'fon') {
+              offset_val_element.innerText = '0x1F'
+              offset_fnt_element.innerText = 'bitmap'
+            } else {
+              offset_val_element.innerText = '0x0C'
+              offset_fnt_element.innerText = 'bdf'
             }
-        };
-    </script>
-    {{{ SCRIPT }}}
+            offset_container_element.style.removeProperty('display')
+            offset_check_element.checked = true
+          } else {
+            offset_container_element.style.display = 'none'
+            offset_check_element.checked = false
+          }
+          submit_element.disabled = !font_element.files.length
+        }
+        font_element.oncancel = () => {
+          font_element.value = null
+          offset_container_element.style.display = 'none'
+          offset_check_element.checked = false
+          submit_element.disabled = true
+        }
+
+        // Run fontconvert on submit
+        form_element.onsubmit = async event => {
+          event.preventDefault()
+          // Reset code output
+          code_element.innerHTML = ''
+          display_element.innerHTML = ''
+          // Prepare the font file contents. We need to read it,
+          // allocate space for it in the wasm's memory and copy
+          // its contents there
+          FS.writeFile( // Create a new MEMFS file, will be deleted in wasm
+            '/font',
+            new Uint8Array(await font_element.files[0].arrayBuffer())
+          )
+
+          // Prepare arguments:
+          // >> char *fontName
+          // >> uint8_t size
+          // >> uint8_t first
+          // >> uint8_t last
+          // >> uint8_t charmapOffset
+
+          let offset = 0
+          if (offset_check_element.checked) offset = ext == 'fon' ? 0x1F : 0x0C
+          // Make call
+          if (Module._fontconvert(
+            parseInt(size_element.value),
+            parseInt(first_element.value),
+            parseInt(last_element.value),
+            offset
+          )) return
+
+          after_generated_element.style.removeProperty('display')
+          // Get array of bitmaps (last two values will be ignored)
+          const bitmaps = Array.from(
+            code_element.innerText.matchAll(/(\s{2}|,\s)0x([(0-9)|(A-F)]{2})/g),
+            match => parseInt(match[2], 16)
+          )
+          // Ignore last
+          bitmaps.pop()
+          let current_char = bitmaps.pop()
+          // Get glyphs parameters (last two values will be ignored)
+          const glyphs = Array.from(
+            code_element.innerText.matchAll(/\s(-?\d+)(,|\s)/g),
+            match => parseInt(match[1])
+          ).slice(0, -2)
+
+          // Calculate single characters display table height
+          let max_base = 0
+          let min_under_base = 0
+          for (let i = 0; i < glyphs.length; i += 6) {
+            const neg_base = -glyphs[i + 5]
+            max_base = Math.max(max_base, neg_base)
+            min_under_base = Math.min(min_under_base, neg_base + 1 - glyphs[i + 2])
+          }
+          const char_rows = max_base + 1 - min_under_base
+          const chars_base = char_rows + min_under_base - 1
+
+          // Display character tables
+          for (let i = 0; i < glyphs.length; i += 6) {
+            const char_element = document.createElement('DIV')
+            char_element.className = 'char'
+
+            const char_name_element = document.createElement('DIV')
+            if (current_char == 0x20) {
+              char_name_element.className = 'charname note'
+              char_name_element.innerText = 'space'
+            } else if ((current_char > 0x7E && current_char < 0xA1) || current_char == 0xAD) {
+              char_name_element.className = 'charname note'
+              char_name_element.innerHTML = 'noprint'
+            } else {
+              char_name_element.className = 'charname bold'
+              char_name_element.innerText = String.fromCharCode(current_char)
+            }
+            const char_code_element = document.createElement('DIV')
+            char_code_element.className = 'charcode note'
+            char_code_element.innerText = '0x' + current_char.toString(16).toUpperCase()
+
+            const char_table_element = document.createElement('DIV')
+            char_table_element.className = 'chartable'
+            // Variables for current character
+            const char_base = chars_base + glyphs[i + 5]
+            const char_x_offset = glyphs[i + 4]
+            const char_x_advance = glyphs[i + 3]
+            const last_row = char_base + glyphs[i + 2]
+            let last_col = glyphs[i + 1]
+            let bitmap_index = glyphs[i]
+            // Calculate proper character width
+            if (char_x_offset > 0) last_col += char_x_offset
+            const max_cols = Math.max(char_x_advance, last_col)
+            // Overflow indicators positions (red vertical bars)
+            let overflow_l_col = -1
+            let overflow_r_col = max_cols > char_x_advance ? char_x_advance - 1 : 0
+            if (char_x_offset < 0) {
+              overflow_l_col -= char_x_offset
+              if (overflow_r_col) overflow_r_col -= char_x_offset
+            }
+            let bits = []
+            // Character row
+            for (let j = 0; j < char_rows; j++) {
+              const char_tr_element = document.createElement('DIV')
+              char_tr_element.className = 'tr'
+              // Red underline for character base
+              if (j == chars_base) char_tr_element.classList.add('base')
+              // Pixels
+              for (let k = 0; k < max_cols; k++) {
+                const char_td_element = document.createElement('DIV')
+                char_td_element.className = 'td'
+                // Draw pixels between current base and last row
+                // Check if current pixel is between offset and last col
+                if (j >= char_base && j < last_row && k >= char_x_offset && k < last_col) {
+                  // If current bits array is empty fill it
+                  if (!bits.length) bits = bitmaps[bitmap_index++].toString(2).padStart(8, '0').split('')
+                  char_td_element.classList.add('_' + bits.shift())
+                }
+                // Change vertical border color when overflowing
+                if ((overflow_l_col >= 0 && k == overflow_l_col) || (overflow_r_col && k == overflow_r_col)) char_td_element.classList.add('overflow')
+                char_tr_element.appendChild(char_td_element)
+              }
+              char_table_element.appendChild(char_tr_element)
+            }
+            current_char++
+            char_element.appendChild(char_name_element)
+            char_element.appendChild(char_code_element)
+            char_element.appendChild(char_table_element)
+            display_element.appendChild(char_element)
+          }
+        }
+
+        // Copy output to clipboard handler
+        copy_element.onclick = async () => {
+          await navigator.clipboard.writeText(code_element.innerText)
+          Toastify({
+            text: 'Generated code copied to clipboard',
+            gravity: 'bottom',
+            position: 'center',
+            stopOnFocus: false,
+            style: { background: '#444' },
+          }).showToast()
+        }
+
+        // Reset output handler
+        clear_element.onclick = () => {
+          form_element.reset()
+          offset_container_element.style.display = 'none'
+          offset_check_element.checked = false
+          submit_element.disabled = true
+          after_generated_element.style.display = 'none'
+          code_element.innerHTML = ''
+          display_element.innerHTML = ''
+        }
+      }
+    }
+  </script>
+  {{{ SCRIPT }}}
 </body>
 </html>

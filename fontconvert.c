@@ -54,34 +54,25 @@ void enbit(uint8_t value) {
 }
 
 #ifdef __EMSCRIPTEN__
+static const char *fname = "/font";
+
 /**
  * Exported function for emscripten
- * @param fontName         char*    String pointer with font file name, will be freed here
- * @param fontFileContents uint8_t* Array pointer with font file contents, will be freed here
- * @param fontFileSize     uint16_t Size of the font file
  * @param size             uint8_t  Size of the font characters
  * @param first            uint8_t  First character to process, default is 0x20 (SPACE)
  * @param last             uint8_t  Last character to process, default is 0x7E (~)
  * @param charmapOffset    uint8_t  Offset for going back x characters in the charmap (for FON files)
  */
-extern int fontconvert(
-  char *fontName,
-  uint8_t *fontFileContents,
-  uint16_t fontFileSize,
-  uint8_t size,
-  uint8_t first,
-  uint8_t last,
-  uint8_t charmapOffset
-) {
+extern int fontconvert(uint8_t size, uint8_t first, uint8_t last, uint8_t charmapOffset) {
 #else
 #define charmapOffset 0
 int main(int argc, char *argv[]) {
 #endif
-  int i, j, fontNameLen, err, bitmapOffset = 0, x, y, byte;
+  int i, j, err, bitmapOffset = 0, x, y, byte;
 #ifndef __EMSCRIPTEN__
-  int size, first = ' ', last = '~';
-  char *fontName;
+  int size, first = ' ', last = '~', fontNameLen;
 #endif
+  char *fontName;
   char c, *ptr;
   FT_Library library;
   FT_Face face;
@@ -120,14 +111,7 @@ int main(int argc, char *argv[]) {
     last = i;
   }
 
-#ifdef __EMSCRIPTEN__
-  // Allocate some extra space on fontName
-  fontNameLen = strlen(fontName);
-  if (!(fontName = realloc(fontName, fontNameLen + 20))) {
-    fprintf(stderr, "fontName realloc error\n");
-    // Free our allocated pointers
-    free(fontFileContents);
-#else
+#ifndef __EMSCRIPTEN__
   ptr = strrchr(argv[1], '/'); // Find last slash in filename
   if (ptr)
     ptr++; // First character of filename (path stripped)
@@ -138,15 +122,12 @@ int main(int argc, char *argv[]) {
   fontNameLen = strlen(ptr);
   if (!(fontName = malloc(fontNameLen + 20))) {
     fprintf(stderr, "fontName malloc error\n");
-#endif
     return 1;
   }
 
   // Derive font table names from filename.  Period (filename
   // extension) is truncated and replaced with the font size & bits.
-#ifndef __EMSCRIPTEN__
   strcpy(fontName, ptr);
-#endif
   ptr = strrchr(fontName, '.'); // Find last period (file ext)
   if (!ptr)
     ptr = &fontName[fontNameLen]; // If none, append
@@ -158,14 +139,16 @@ int main(int argc, char *argv[]) {
     if (isspace(c) || ispunct(c))
       fontName[i] = '_';
   }
+#endif
 
   // Init FreeType lib, load font
   if ((err = FT_Init_FreeType(&library))) {
     fprintf(stderr, "FreeType init error: %d\n", err);
     // Free our allocated pointers
-    free(fontName);
 #ifdef __EMSCRIPTEN__
-    free(fontFileContents);
+    remove(fname);
+#else
+    free(fontName);
 #endif
     return err;
   }
@@ -179,19 +162,39 @@ int main(int argc, char *argv[]) {
                   &interpreter_version);
 
 #ifdef __EMSCRIPTEN__
-  if ((err = FT_New_Memory_Face(library, fontFileContents, fontFileSize, 0, &face))) {
+  if ((err = FT_New_Face(library, fname, 0, &face))) {
 #else
   if ((err = FT_New_Face(library, argv[1], 0, &face))) {
 #endif
     fprintf(stderr, "Font load error: %d\n", err);
     // Free our allocated pointers
     FT_Done_FreeType(library);
-    free(fontName);
 #ifdef __EMSCRIPTEN__
-    free(fontFileContents);
+    remove(fname);
+#else
+    free(fontName);
 #endif
     return err;
   }
+
+#ifdef __EMSCRIPTEN__
+  // Allocate space for font name
+  if (!(fontName = malloc(strlen(face->family_name) + 20))) {
+    fprintf(stderr, "fontName malloc error\n");
+    remove(fname);
+    return 1;
+  }
+
+  // Derive font table names from face family name.
+  // Insert font size and 7/8 bit.  fontName was alloc'd w/extra
+  // space to allow this, we're not sprintfing into Forbidden Zone.
+  sprintf(fontName, "%s%dpt%db", face->family_name, size, (last > 127) ? 8 : 7);
+  // Space and punctuation chars in name replaced w/ underscores.
+  for (i = 0; (c = fontName[i]); i++) {
+    if (isspace(c) || ispunct(c))
+      fontName[i] = '_';
+  }
+#endif
 
   // << 6 because '26dot6' fixed-point format
   FT_Set_Char_Size(face, size << 6, 0, DPI, 0);
@@ -218,7 +221,7 @@ int main(int argc, char *argv[]) {
     FT_Done_FreeType(library);
     free(fontName);
 #ifdef __EMSCRIPTEN__
-    free(fontFileContents);
+    remove(fname);
 #endif
     return 1;
   }
@@ -325,7 +328,7 @@ int main(int argc, char *argv[]) {
   free(table);
   free(fontName);
 #ifdef __EMSCRIPTEN__
-  free(fontFileContents);
+  remove(fname);
 #endif
 
   return 0;
