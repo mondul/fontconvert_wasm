@@ -289,6 +289,12 @@ int main(int argc, char *argv[]) {
 
   printf(" };\n\n"); // End bitmap array
 
+#ifdef __EMSCRIPTEN__
+  // Single characters display table height
+  int8_t max_base = 0;
+  int8_t min_under_base = 0;
+#endif
+
   // Output glyph attributes table (one per character)
   printf("const GFXglyph %sGlyphs[] PROGMEM = {\n", fontName);
   for (i = first, j = 0; i <= last; i++, j++) {
@@ -302,11 +308,25 @@ int main(int argc, char *argv[]) {
       }
       putchar('\n');
     }
+#ifdef __EMSCRIPTEN__
+    if (-table[j].yOffset > max_base) max_base = -table[j].yOffset;
+    int8_t under_base = -table[j].yOffset + 1 - table[j].height;
+    if (min_under_base > under_base) min_under_base = under_base;
+#endif
   }
   printf(" }; // 0x%02X", last);
   if ((last >= ' ') && (last <= '~'))
     printf(" '%c'", last);
   printf("\n\n");
+
+#ifdef __EMSCRIPTEN__
+  int8_t char_rows = max_base + 1 - min_under_base;
+  printf(
+    "// For JS: char_rows=%d chars_base=%d\n\n",
+    char_rows,
+    char_rows + min_under_base - 1
+  );
+#endif
 
   // Output font structure
   printf("const GFXfont %s PROGMEM = {\n", fontName);

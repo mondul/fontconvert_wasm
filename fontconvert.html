@@ -159,7 +159,7 @@
       },
       printErr: text => {
         Toastify({
-          text: text,
+          text,
           gravity: 'bottom',
           position: 'center',
           stopOnFocus: false,
@@ -225,7 +225,6 @@
           )
 
           // Prepare arguments:
-          // >> char *fontName
           // >> uint8_t size
           // >> uint8_t first
           // >> uint8_t last
@@ -256,16 +255,11 @@
             match => parseInt(match[1])
           ).slice(0, -2)
 
-          // Calculate single characters display table height
-          let max_base = 0
-          let min_under_base = 0
-          for (let i = 0; i < glyphs.length; i += 6) {
-            const neg_base = -glyphs[i + 5]
-            max_base = Math.max(max_base, neg_base)
-            min_under_base = Math.min(min_under_base, neg_base + 1 - glyphs[i + 2])
-          }
-          const char_rows = max_base + 1 - min_under_base
-          const chars_base = char_rows + min_under_base - 1
+          // Get single characters display table height
+          const [ char_rows, chars_base ] = Array.from(
+            code_element.innerText.matchAll(/=(-?\d+)/g),
+            match => parseInt(match[1])
+          )
 
           // Display character tables
           for (let i = 0; i < glyphs.length; i += 6) {
